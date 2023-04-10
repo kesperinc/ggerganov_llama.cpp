@@ -2967,7 +2967,12 @@ struct ggml_context * ggml_init(struct ggml_init_params params) {
 
     *ctx = (struct ggml_context) {
         /*.mem_size           =*/ params.mem_size,
-        /*.mem_buffer         =*/ params.mem_buffer ? params.mem_buffer : malloc(params.mem_size),
+        /*.mem_buffer         =*/ params.mem_buffer ? params.mem_buffer :
+#if defined(_MSC_VER) || defined(__MINGW32__)
+                                                      _aligned_malloc(params.mem_size, GGML_MEM_ALIGN),
+#else
+                                                      aligned_alloc(GGML_MEM_ALIGN, params.mem_size),
+#endif
         /*.mem_buffer_owned   =*/ params.mem_buffer ? false : true,
         /*.no_alloc           =*/ params.no_alloc,
         /*.n_objects          =*/ 0,
@@ -3002,7 +3007,11 @@ void ggml_free(struct ggml_context * ctx) {
                     __func__, i, ctx->n_objects, ctx->objects_end->offs + ctx->objects_end->size);
 
             if (ctx->mem_buffer_owned) {
+#if defined(_MSC_VER) || defined(__MINGW32__)
+                _aligned_free(ctx->mem_buffer);
+#else
                 free(ctx->mem_buffer);
+#endif
             }
 
             found = true;
